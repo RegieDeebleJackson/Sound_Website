@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webcam Access</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="video-container">
+        <video id="video" autoplay playsinline></video>
+        <button id="fs-btn" title="Toggle fullscreen">⤢</button>
+        <div class="quadrants">
+            <div class="quadrant" data-q="0"></div>
+            <div class="quadrant" data-q="1"></div>
+            <div class="quadrant" data-q="2"></div>
+            <div class="quadrant" data-q="3"></div>
+        </div>
+        <div class="controls" aria-hidden="false">
+            <div class="control-row">
+                <button id="enable-audio" type="button">Enable audio</button>
+            </div>
+            <div class="control-row">
+                <label for="restart-audio">Restart audio on motion</label>
+                <input id="restart-audio" type="checkbox" />
+                <span style="font-size:12px;opacity:0.85;margin-left:8px;">When checked, audio restarts from start each trigger; unchecked = pause/resume.</span>
+            </div>
+                <div class="control-row">
+                <label for="layout-preset">Layout mode</label>
+                <select id="layout-preset">
+                    <option value="quadrants">2×2 Quadrants</option>
+                    <option value="vertical">Vertical Stripes</option>
+                    <option value="horizontal">Horizontal Stripes</option>
+                    <option value="checkerboard">Checkerboard (2×2)</option>
+                    <option value="thirds-v">Vertical Thirds</option>
+                    <option value="thirds-h">Horizontal Thirds</option>
+                </select>
+                <span style="font-size:12px;opacity:0.85;margin-left:8px;">Press keys 1-4 to manually toggle quadrants on/off</span>
+            </div>
+            <div class="control-row">
+                <label for="sensitivity">Sensitivity: <span id="sens-val">20</span></label>
+                <input id="sensitivity" type="range" min="5" max="60" step="1" value="20">
+            </div>
+            <div class="control-row">
+                <label for="fps">FPS: <span id="fps-val">10</span></label>
+                <input id="fps" type="range" min="2" max="30" step="1" value="10">
+            </div>
+            <div class="audio-rows">
+                <div class="control-row">
+                    <label for="audio-0">Quadrant 1 audio</label>
+                    <input id="audio-0" type="file" accept="audio/*">
+                    <span class="audio-name" id="audio-name-0"></span>
+                    <label class="vol-label">Vol: <span id="vol-val-0">100</span></label>
+                    <input id="volume-0" type="range" min="0" max="100" step="1" value="100">
+                    <label class="vol-label">Audio stop delay: <span id="stop-val-0">800</span>ms</label>
+                    <input id="stop-delay-0" type="range" min="200" max="3000" step="50" value="800">
+                </div>
+                <div class="control-row">
+                    <label for="audio-1">Quadrant 2 audio</label>
+                    <input id="audio-1" type="file" accept="audio/*">
+                    <span class="audio-name" id="audio-name-1"></span>
+                    <label class="vol-label">Vol: <span id="vol-val-1">100</span></label>
+                    <input id="volume-1" type="range" min="0" max="100" step="1" value="100">
+                    <label class="vol-label">Audio stop delay: <span id="stop-val-1">800</span>ms</label>
+                    <input id="stop-delay-1" type="range" min="200" max="3000" step="50" value="800">
+                </div>
+                <div class="control-row">
+                    <label for="audio-2">Quadrant 3 audio</label>
+                    <input id="audio-2" type="file" accept="audio/*">
+                    <span class="audio-name" id="audio-name-2"></span>
+                    <label class="vol-label">Vol: <span id="vol-val-2">100</span></label>
+                    <input id="volume-2" type="range" min="0" max="100" step="1" value="100">
+                    <label class="vol-label">Audio stop delay: <span id="stop-val-2">800</span>ms</label>
+                    <input id="stop-delay-2" type="range" min="200" max="3000" step="50" value="800">
+                </div>
+                <div class="control-row">
+                    <label for="audio-3">Quadrant 4 audio</label>
+                    <input id="audio-3" type="file" accept="audio/*">
+                    <span class="audio-name" id="audio-name-3"></span>
+                    <label class="vol-label">Vol: <span id="vol-val-3">100</span></label>
+                    <input id="volume-3" type="range" min="0" max="100" step="1" value="100">
+                    <label class="vol-label">Audio stop delay: <span id="stop-val-3">800</span>ms</label>
+                    <input id="stop-delay-3" type="range" min="200" max="3000" step="50" value="800">
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

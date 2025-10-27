@@ -1,0 +1,249 @@
+/* Make the video take the full viewport and cover it while preserving aspect ratio */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+}
+
+.video-container {
+    position: fixed;
+    inset: 0; /* top:0; right:0; bottom:0; left:0 */
+    overflow: hidden;
+    background-color: #000;
+}
+
+video {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 100vh;
+    /* Allow horizontal flip control via --flip variable; default 1 = normal, -1 = mirrored */
+    transform: translate(-50%, -50%) scaleX(var(--flip, 1));
+    object-fit: cover; /* Ensures the video covers the entire screen */
+    background-color: #000;
+}
+
+/* Fullscreen toggle button */
+#fs-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#fs-btn:focus {
+    outline: 2px solid rgba(255,255,255,0.25);
+}
+
+/* Quadrant overlays: four absolute divs that align to each quarter of the viewport */
+.quadrants {
+    position: absolute;
+    inset: 0;
+    pointer-events: none; /* allow clicks to pass through */
+    z-index: 15;
+}
+
+.quadrant {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    /* COVER the video by default. Quadrants will become transparent when 'active' */
+    background: rgba(0,0,0,1);
+    transition: background-color 150ms ease-in;
+}
+
+/* when a quadrant is active (subject present), make it transparent so the live video shows through */
+.quadrant.active {
+    background-color: rgba(0,0,0,0);
+}
+
+/* Manual override indicators */
+.quadrant::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+/* Green dot for forced-on state */
+.quadrant.manual-on::before {
+    opacity: 0.8;
+    background-color: #4caf50;
+}
+
+/* Red dot for forced-off state */
+.quadrant.manual-off::before {
+    opacity: 0.8;
+    background-color: #f44336;
+}
+
+/* Position each quadrant: q0 top-left, q1 top-right, q2 bottom-left, q3 bottom-right */
+.quadrant[data-q="0"] { top: 0; left: 0; }
+.quadrant[data-q="1"] { top: 0; right: 0; }
+.quadrant[data-q="2"] { bottom: 0; left: 0; }
+.quadrant[data-q="3"] { bottom: 0; right: 0; }
+
+/* Vertical stripes layout: when the .quadrants container has the .vertical class, lay out 4 equal vertical stripes */
+/* Layout presets */
+
+/* Vertical stripes: 4 equal vertical sections */
+.quadrants.vertical .quadrant {
+    width: 25%;
+    height: 100%;
+    top: 0;
+    bottom: 0;
+    right: auto;
+}
+.quadrants.vertical .quadrant[data-q="0"] { left: 0%; }
+.quadrants.vertical .quadrant[data-q="1"] { left: 25%; }
+.quadrants.vertical .quadrant[data-q="2"] { left: 50%; }
+.quadrants.vertical .quadrant[data-q="3"] { left: 75%; }
+
+/* Horizontal stripes: 4 equal horizontal sections */
+.quadrants.horizontal .quadrant {
+    width: 100%;
+    height: 25%;
+    left: 0;
+    right: 0;
+    bottom: auto;
+}
+.quadrants.horizontal .quadrant[data-q="0"] { top: 0%; }
+.quadrants.horizontal .quadrant[data-q="1"] { top: 25%; }
+.quadrants.horizontal .quadrant[data-q="2"] { top: 50%; }
+.quadrants.horizontal .quadrant[data-q="3"] { top: 75%; }
+
+/* Checkerboard: alternate positioning for visual interest */
+.quadrants.checkerboard .quadrant {
+    width: 50%;
+    height: 50%;
+}
+.quadrants.checkerboard .quadrant[data-q="0"] { top: 0; right: 50%; }
+.quadrants.checkerboard .quadrant[data-q="1"] { top: 0; left: 50%; }
+.quadrants.checkerboard .quadrant[data-q="2"] { bottom: 0; left: 50%; }
+.quadrants.checkerboard .quadrant[data-q="3"] { bottom: 0; right: 50%; }
+
+/* Vertical thirds: 3+1 layout (3 vertical strips plus bottom) */
+.quadrants.thirds-v .quadrant {
+    height: 100%;
+    width: 33.333%;
+    top: 0;
+    bottom: 0;
+    right: auto;
+}
+.quadrants.thirds-v .quadrant[data-q="0"] { left: 0; }
+.quadrants.thirds-v .quadrant[data-q="1"] { left: 33.333%; }
+.quadrants.thirds-v .quadrant[data-q="2"] { left: 66.666%; }
+.quadrants.thirds-v .quadrant[data-q="3"] { 
+    left: 0;
+    width: 100%;
+    height: 25%;
+    top: auto;
+    bottom: 0;
+}
+
+/* Horizontal thirds: 3+1 layout (3 horizontal strips plus right) */
+.quadrants.thirds-h .quadrant {
+    width: 100%;
+    height: 33.333%;
+    left: 0;
+    right: 0;
+    bottom: auto;
+}
+.quadrants.thirds-h .quadrant[data-q="0"] { top: 0; }
+.quadrants.thirds-h .quadrant[data-q="1"] { top: 33.333%; }
+.quadrants.thirds-h .quadrant[data-q="2"] { top: 66.666%; }
+.quadrants.thirds-h .quadrant[data-q="3"] {
+    top: 0;
+    height: 100%;
+    width: 25%;
+    left: auto;
+    right: 0;
+}
+
+/* Controls panel */
+.controls {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 25;
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    font-size: 13px;
+    backdrop-filter: blur(4px);
+}
+
+.controls .control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.controls label { min-width: 110px; }
+.controls input[type="range"] { width: 160px; }
+
+.controls span { font-weight: 600; margin-left: 6px; }
+
+.controls input[type="file"] {
+    color: #fff;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+
+.audio-name { margin-left: 8px; font-size: 12px; opacity: 0.9; }
+
+.controls #enable-audio {
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.controls .vol-label { margin-left: 8px; font-size: 12px; color: #fff; }
+.controls input[type="range"].volume { width: 120px; }
+.controls input[type="range"]#volume-0,
+.controls input[type="range"]#volume-1,
+.controls input[type="range"]#volume-2,
+.controls input[type="range"]#volume-3 { width: 120px; margin-left: 6px; }
+
+/* Layout preset dropdown styling */
+.controls select {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    min-width: 140px;
+}
+
+.controls select:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.4);
+}
+
+.controls select option {
+    background: #222;
+    color: #fff;
+}
