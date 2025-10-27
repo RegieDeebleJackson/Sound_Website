@@ -186,6 +186,14 @@ function startMotionDetection(video) {
     } catch (e) {}
     const enableBtn = document.getElementById('enable-audio');
     const restartCheckbox = document.getElementById('restart-audio');
+    // mirror control
+    const MIRROR_KEY = 'video_mirror';
+    const mirrorToggle = document.getElementById('mirror-toggle');
+    let mirrorEnabled = false;
+    try {
+        const mStored = localStorage.getItem(MIRROR_KEY);
+        if (mStored !== null) mirrorEnabled = (mStored === '1');
+    } catch (e) {}
 
     // per-quadrant stop delays (ms)
     const stopDelays = [800,800,800,800];
@@ -234,6 +242,31 @@ function startMotionDetection(video) {
             try { localStorage.setItem(RESTART_KEY, restartOnTrigger ? '1' : '0'); } catch (err) {}
         });
     }
+
+    // apply mirror preference and wire UI
+    function applyMirror() {
+        try {
+            const videoEl = document.getElementById('video');
+            if (videoEl) {
+                videoEl.style.setProperty('--flip', mirrorEnabled ? '-1' : '1');
+            }
+            if (quadsContainer) {
+                // mirror the overlay so visual indicators line up
+                quadsContainer.style.transform = mirrorEnabled ? 'scaleX(-1)' : '';
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    if (mirrorToggle) {
+        mirrorToggle.checked = !!mirrorEnabled;
+        mirrorToggle.addEventListener('change', (e) => {
+            mirrorEnabled = !!e.target.checked;
+            try { localStorage.setItem(MIRROR_KEY, mirrorEnabled ? '1' : '0'); } catch (err) {}
+            applyMirror();
+        });
+    }
+    // apply initially
+    applyMirror();
 
     // attach UI listeners if present
     if (sensEl) {
@@ -360,6 +393,30 @@ function startMotionDetection(video) {
     }
 
     // handle number key presses 1-4 for manual control
+    // helper: find quadrant index that contains normalized point (nx,ny in [0..1])
+    function getQuadAtNormalizedPoint(nx, ny) {
+        const x = nx * window.innerWidth;
+        const y = ny * window.innerHeight;
+        // first try exact containment
+        for (let i = 0; i < quadEls.length; i++) {
+            const r = quadEls[i].getBoundingClientRect();
+            if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return i;
+        }
+        // fallback: choose nearest center
+        let best = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < quadEls.length; i++) {
+            const r = quadEls[i].getBoundingClientRect();
+            const cx = (r.left + r.right) / 2;
+            const cy = (r.top + r.bottom) / 2;
+            const dx = cx - x;
+            const dy = cy - y;
+            const d = dx*dx + dy*dy;
+            if (d < bestDist) { bestDist = d; best = i; }
+        }
+        return best;
+    }
+
     window.addEventListener('keydown', (e) => {
         // ignore if typing in input/textarea
         if (document.activeElement?.tagName === 'INPUT' || 
@@ -368,7 +425,15 @@ function startMotionDetection(video) {
 
         const key = e.key;
         if (key >= '1' && key <= '4') {
-            const q = parseInt(key) - 1;
+            // mapping: 1=top-left,2=top-right,3=bottom-left,4=bottom-right (normalized coords)
+            const map = {
+                '1': [0.25, 0.25],
+                '2': [0.75, 0.25],
+                '3': [0.25, 0.75],
+                '4': [0.75, 0.75]
+            };
+            const [nx, ny] = map[key];
+            const q = getQuadAtNormalizedPoint(nx, ny);
             toggleQuadrant(q);
         }
     });
