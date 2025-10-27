@@ -177,6 +177,7 @@ function startMotionDetection(video) {
     const AUDIO_ENABLED_KEY = 'audio_enabled';
     const STOP_KEY = 'stop_delay_q_';
     const RESTART_KEY = 'audio_restart_on_trigger';
+    const FACE_KEEP_KEY = 'face_keep_detect';
     let audioEnabled = localStorage.getItem(AUDIO_ENABLED_KEY) === '1';
     // restartOnTrigger: when true audio will reset to start when paused; when false audio will pause and resume
     let restartOnTrigger = true;
@@ -186,6 +187,7 @@ function startMotionDetection(video) {
     } catch (e) {}
     const enableBtn = document.getElementById('enable-audio');
     const restartCheckbox = document.getElementById('restart-audio');
+    const faceKeepCheckbox = document.getElementById('face-keep');
     // mirror control
     const MIRROR_KEY = 'video_mirror';
     const mirrorToggle = document.getElementById('mirror-toggle');
@@ -267,6 +269,95 @@ function startMotionDetection(video) {
     }
     // apply initially
     applyMirror();
+
+    // Face detection: keep quadrants active while a face is present
+    let faceKeep = false;
+    let faceDetector = null;
+    let faceIntervalId = null;
+    try {
+        const fStored = localStorage.getItem(FACE_KEEP_KEY);
+        if (fStored !== null) faceKeep = (fStored === '1');
+    } catch (e) {}
+
+    async function runFaceDetectionOnce() {
+        if (!faceDetector) return;
+        try {
+            const faces = await faceDetector.detect(video);
+            if (!faces || faces.length === 0) return;
+            const rect = video.getBoundingClientRect();
+            const vw = video.videoWidth || rect.width;
+            const vh = video.videoHeight || rect.height;
+            faces.forEach(f => {
+                const box = f.boundingBox || f.box || null;
+                if (!box) return;
+                // compute center in CSS coords
+                const cx = rect.left + ((box.x || 0) + (box.width || 0) / 2) * (rect.width / vw);
+                const cy = rect.top + ((box.y || 0) + (box.height || 0) / 2) * (rect.height / vh);
+                const nx = (cx - rect.left) / rect.width;
+                const ny = (cy - rect.top) / rect.height;
+                const q = getQuadAtNormalizedPoint(nx, ny);
+                // if quadrant not manually overridden to off, keep it seen
+                if (manualOverrides[q] === false) return; // forced off, do not override
+                lastSeen[q] = performance.now();
+            });
+        } catch (e) {
+            // FaceDetector may throw if not supported or busy
+            // stop face detection to avoid spamming errors
+            console.warn('Face detection error, disabling face-keep:', e);
+            stopFaceDetection();
+            if (faceKeepCheckbox) faceKeepCheckbox.disabled = true;
+        }
+    }
+
+    function startFaceDetection() {
+        if (!('FaceDetector' in window)) {
+            console.warn('FaceDetector API not available in this browser');
+            if (faceKeepCheckbox) faceKeepCheckbox.disabled = true;
+            return;
+        }
+        try {
+            faceDetector = faceDetector || new FaceDetector({ fastMode: true, maxDetectedFaces: 4 });
+        } catch (e) {
+            console.warn('Could not create FaceDetector:', e);
+            if (faceKeepCheckbox) faceKeepCheckbox.disabled = true;
+            return;
+        }
+        // run at up to 10 FPS to limit CPU
+        if (faceIntervalId) clearInterval(faceIntervalId);
+        const rate = Math.max(5, Math.min(15, Math.round(fps)));
+        faceIntervalId = setInterval(runFaceDetectionOnce, Math.round(1000 / rate));
+    }
+
+    function stopFaceDetection() {
+        if (faceIntervalId) { clearInterval(faceIntervalId); faceIntervalId = null; }
+        faceDetector = null;
+    }
+
+    // wire checkbox
+    if (faceKeepCheckbox) {
+        faceKeepCheckbox.checked = !!faceKeep;
+        faceKeepCheckbox.addEventListener('change', (e) => {
+            faceKeep = !!e.target.checked;
+            try { localStorage.setItem(FACE_KEEP_KEY, faceKeep ? '1' : '0'); } catch (err) {}
+            if (faceKeep) startFaceDetection(); else stopFaceDetection();
+        });
+    }
+    if (faceKeep) startFaceDetection();
+
+    // keyboard shortcut: 'm' toggles mirror (ignore while typing)
+    window.addEventListener('keydown', (e) => {
+        if (document.activeElement?.tagName === 'INPUT' || 
+            document.activeElement?.tagName === 'TEXTAREA' ||
+            document.activeElement?.isContentEditable) return;
+        if (e.key === 'm' || e.key === 'M') {
+            mirrorEnabled = !mirrorEnabled;
+            if (mirrorToggle) mirrorToggle.checked = !!mirrorEnabled;
+            try { localStorage.setItem(MIRROR_KEY, mirrorEnabled ? '1' : '0'); } catch (err) {}
+            applyMirror();
+            // prevent accidental repeated actions when holding the key
+            e.preventDefault();
+        }
+    });
 
     // attach UI listeners if present
     if (sensEl) {
