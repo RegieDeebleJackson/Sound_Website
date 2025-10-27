@@ -91,6 +91,23 @@ video {
     background-color: #f44336;
 }
 
+/* Face-held highlight: blue inset ring when a face keeps the quadrant active */
+.quadrant.face-held {
+    box-shadow: inset 0 0 0 4px rgba(33,150,243,0.20);
+}
+
+.quadrant.face-held::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(33,150,243,0.95);
+    opacity: 0.95;
+}
+
 /* Position each quadrant: q0 top-left, q1 top-right, q2 bottom-left, q3 bottom-right */
 .quadrant[data-q="0"] { top: 0; left: 0; }
 .quadrant[data-q="1"] { top: 0; right: 0; }

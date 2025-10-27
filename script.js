@@ -123,6 +123,9 @@ function startMotionDetection(video) {
 
     // timestamps for when motion was last seen in each quadrant
     const lastSeen = [0,0,0,0];
+    // timestamps for when a face was last observed in each quadrant (for UI display)
+    const faceHeld = [0,0,0,0];
+    const FACE_HOLD_DISPLAY_TIMEOUT = 600; // ms - how long to visually mark a quadrant as face-held
     // ms thresholds
     const ACTIVE_TIMEOUT = 800; // ms - how long we consider a quadrant 'active' after its last motion
     const AUDIO_STOP_DELAY = 1000; // ms - when no quadrant is active for this long, stop all audio
@@ -144,6 +147,7 @@ function startMotionDetection(video) {
     const sensValEl = document.getElementById('sens-val');
     const fpsEl = document.getElementById('fps');
     const fpsValEl = document.getElementById('fps-val');
+    const faceStatusEl = document.getElementById('face-status');
 
     // audio file inputs and runtime audio elements for each quadrant
     const audioInputs = [
@@ -296,6 +300,8 @@ function startMotionDetection(video) {
                 const nx = (cx - rect.left) / rect.width;
                 const ny = (cy - rect.top) / rect.height;
                 const q = getQuadAtNormalizedPoint(nx, ny);
+                // mark face-held timestamp for UI
+                faceHeld[q] = performance.now();
                 // if quadrant not manually overridden to off, keep it seen
                 if (manualOverrides[q] === false) return; // forced off, do not override
                 lastSeen[q] = performance.now();
@@ -550,6 +556,12 @@ function startMotionDetection(video) {
                 }
             }
 
+            // face-held visual indicator
+            const isFaceHeld = (now - faceHeld[q]) < FACE_HOLD_DISPLAY_TIMEOUT;
+            if (el) {
+                if (isFaceHeld) el.classList.add('face-held'); else el.classList.remove('face-held');
+            }
+
             // Audio follows the same logic but with configurable delay when in motion mode
             const isAudioActive = manualOverrides[q] !== null ?
                 manualOverrides[q] : // if override, use that
@@ -583,6 +595,19 @@ function startMotionDetection(video) {
                 }
             }
         }
+
+        // update face-status UI
+        try {
+            if (faceStatusEl) {
+                const held = [];
+                for (let q = 0; q < 4; q++) if ((now - faceHeld[q]) < FACE_HOLD_DISPLAY_TIMEOUT) held.push(q+1);
+                if (held.length === 0) {
+                    faceStatusEl.textContent = 'No face';
+                } else {
+                    faceStatusEl.textContent = 'Face: ' + held.join(',');
+                }
+            }
+        } catch (e) {}
     }
 
     function detectFrame() {
