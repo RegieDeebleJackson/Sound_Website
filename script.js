@@ -182,6 +182,7 @@ function startMotionDetection(video) {
     const STOP_KEY = 'stop_delay_q_';
     const RESTART_KEY = 'audio_restart_on_trigger';
     const FACE_KEEP_KEY = 'face_keep_detect';
+    const FACE_RATE_KEY = 'face_detect_fps';
     let audioEnabled = localStorage.getItem(AUDIO_ENABLED_KEY) === '1';
     // restartOnTrigger: when true audio will reset to start when paused; when false audio will pause and resume
     let restartOnTrigger = true;
@@ -192,6 +193,8 @@ function startMotionDetection(video) {
     const enableBtn = document.getElementById('enable-audio');
     const restartCheckbox = document.getElementById('restart-audio');
     const faceKeepCheckbox = document.getElementById('face-keep');
+    const faceFpsEl = document.getElementById('face-fps');
+    const faceFpsValEl = document.getElementById('face-fps-val');
     // mirror control
     const MIRROR_KEY = 'video_mirror';
     const mirrorToggle = document.getElementById('mirror-toggle');
@@ -282,6 +285,13 @@ function startMotionDetection(video) {
         const fStored = localStorage.getItem(FACE_KEEP_KEY);
         if (fStored !== null) faceKeep = (fStored === '1');
     } catch (e) {}
+    // face detection fps (user adjustable)
+    let faceDetectFps = 10;
+    try {
+        const fr = Number(localStorage.getItem(FACE_RATE_KEY));
+        if (Number.isFinite(fr) && fr >= 1) faceDetectFps = Math.min(60, Math.max(1, Math.round(fr)));
+    } catch (e) {}
+    if (faceFpsEl && faceFpsValEl) { faceFpsEl.value = faceDetectFps; faceFpsValEl.textContent = String(faceDetectFps); }
 
     async function runFaceDetectionOnce() {
         if (!faceDetector) return;
@@ -328,9 +338,9 @@ function startMotionDetection(video) {
             if (faceKeepCheckbox) faceKeepCheckbox.disabled = true;
             return;
         }
-        // run at up to 10 FPS to limit CPU
+        // run at configured FPS (limit to reasonable range)
         if (faceIntervalId) clearInterval(faceIntervalId);
-        const rate = Math.max(5, Math.min(15, Math.round(fps)));
+        const rate = Math.max(1, Math.min(60, Math.round(faceDetectFps)));
         faceIntervalId = setInterval(runFaceDetectionOnce, Math.round(1000 / rate));
     }
 
@@ -349,6 +359,18 @@ function startMotionDetection(video) {
         });
     }
     if (faceKeep) startFaceDetection();
+
+    // wire face detection FPS slider
+    if (faceFpsEl && faceFpsValEl) {
+        faceFpsEl.addEventListener('input', (e) => {
+            const v = Number(e.target.value) || 10;
+            faceDetectFps = Math.max(1, Math.min(60, Math.round(v)));
+            faceFpsValEl.textContent = String(faceDetectFps);
+            try { localStorage.setItem(FACE_RATE_KEY, String(faceDetectFps)); } catch (err) {}
+            // if running, restart to apply new rate
+            if (faceKeep) startFaceDetection();
+        });
+    }
 
     // keyboard shortcut: 'm' toggles mirror (ignore while typing)
     window.addEventListener('keydown', (e) => {
@@ -556,12 +578,6 @@ function startMotionDetection(video) {
                 }
             }
 
-            // face-held visual indicator
-            const isFaceHeld = (now - faceHeld[q]) < FACE_HOLD_DISPLAY_TIMEOUT;
-            if (el) {
-                if (isFaceHeld) el.classList.add('face-held'); else el.classList.remove('face-held');
-            }
-
             // Audio follows the same logic but with configurable delay when in motion mode
             const isAudioActive = manualOverrides[q] !== null ?
                 manualOverrides[q] : // if override, use that
@@ -595,19 +611,6 @@ function startMotionDetection(video) {
                 }
             }
         }
-
-        // update face-status UI
-        try {
-            if (faceStatusEl) {
-                const held = [];
-                for (let q = 0; q < 4; q++) if ((now - faceHeld[q]) < FACE_HOLD_DISPLAY_TIMEOUT) held.push(q+1);
-                if (held.length === 0) {
-                    faceStatusEl.textContent = 'No face';
-                } else {
-                    faceStatusEl.textContent = 'Face: ' + held.join(',');
-                }
-            }
-        } catch (e) {}
     }
 
     function detectFrame() {
